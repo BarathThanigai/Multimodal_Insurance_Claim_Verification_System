@@ -47,15 +47,35 @@ def validate_evidence(
                               [], requirement_ids)
     if not relevant:
         part = intent.primary_part.replace("_", " ")
+        contents_claim = (
+            intent.claim_object == "package"
+            and intent.primary_part in {"contents", "item"}
+            and intent.primary_issue == "missing_part"
+        )
+        visibly_unusable = bool(technically_valid) and all(
+            "cropped_or_obstructed" in o.quality_issues for o in technically_valid
+        )
+        if contents_claim:
+            reason = (
+                "Missing package contents cannot be established without a usable "
+                "view of the opened package and contents area."
+            )
+        else:
+            reason = f"No usable image establishes the claimed {part} condition."
         return EvidenceResult(
-            False, True,
-            f"The submitted images do not show the claimed {part} clearly enough to verify the condition.",
+            False, not (contents_claim or visibly_unusable), reason,
             [], requirement_ids,
         )
     ids = [o.image_id for o in relevant]
     part = intent.primary_part.replace("_", " ")
-    if len(ids) == 1:
-        reason = f"Image {ids[0]} shows the claimed {part} clearly enough to evaluate the reported condition."
+    rules_observation = any("deterministic rules" in o.description for o in relevant)
+    if rules_observation:
+        reason = (
+            f"At least one image opened successfully and the extracted {part} claim "
+            "is specific enough for deterministic review."
+        )
+    elif len(ids) == 1:
+        reason = f"Image {ids[0]} shows the claimed {part} clearly enough to evaluate the condition."
     else:
         reason = (f"Images {';'.join(ids)} collectively show the claimed {part} clearly enough "
                   "to evaluate the reported condition.")

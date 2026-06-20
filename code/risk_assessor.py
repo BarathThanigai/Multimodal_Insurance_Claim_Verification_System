@@ -41,6 +41,8 @@ def assess_risk(
     if history:
         flags.update(set(split_semicolon(history.get("history_flags", "")))
                      & {"user_history_risk", "manual_review_required"})
+    if "text_instruction_present" in flags:
+        flags.add("manual_review_required")
     if any(o.error for o in observations):
         flags.add("manual_review_required")
     if (flags & {"wrong_object", "claim_mismatch", "possible_manipulation",

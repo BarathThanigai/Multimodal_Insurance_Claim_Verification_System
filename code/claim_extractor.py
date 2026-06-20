@@ -14,9 +14,11 @@ PART_PATTERNS: dict[str, list[tuple[str, tuple[str, ...]]]] = {
         ("front_bumper", ("front bumper", "bumper delantero", "parachoques delantero",
                           "aage ka bumper", "front side bumper")),
         ("side_mirror", ("side mirror", "wing mirror", "door mirror", "espejo lateral",
-                         "left mirror", "right mirror")),
-        ("windshield", ("windshield", "windscreen", "front glass", "parabrisas", "sheesha")),
-        ("taillight", ("taillight", "tail light", "back light", "rear light", "luz trasera")),
+                         "left mirror", "right mirror", "side ka mirror")),
+        ("windshield", ("windshield", "front windshield", "windscreen", "front glass",
+                         "parabrisas", "sheesha", "aage ka sheesha")),
+        ("taillight", ("taillight", "tail light", "back light", "rear light", "rear lamp",
+                        "luz trasera", "luz posterior", "piche ki light", "peeche ki light")),
         ("headlight", ("headlight", "head light", "front light", "faro")),
         ("quarter_panel", ("quarter panel",)),
         ("fender", ("fender", "mudguard")),
@@ -26,7 +28,8 @@ PART_PATTERNS: dict[str, list[tuple[str, tuple[str, ...]]]] = {
     ],
     "laptop": [
         ("trackpad", ("trackpad", "touchpad", "mouse pad", "panel tactil")),
-        ("keyboard", ("keyboard", "keycap", "keys", "teclas", "teclado", "kunji")),
+        ("keyboard", ("keyboard", "keycap", "key cap", "missing key", "key missing",
+                       "keys", "teclas", "teclado", "kunji")),
         ("hinge", ("hinge", "bisagra")),
         ("screen", ("screen", "display", "pantalla", "monitor", "laptop glass")),
         ("lid", ("outer lid", "laptop lid", "top cover", "tapa")),
@@ -37,9 +40,11 @@ PART_PATTERNS: dict[str, list[tuple[str, tuple[str, ...]]]] = {
     ],
     "package": [
         ("package_corner", ("package corner", "box corner", "cardboard box corner",
-                            "parcel corner", "esquina", "corner dab")),
+                            "parcel corner", "crushed corner", "corner crushed",
+                            "corner dab gaya", "esquina", "corner dab")),
         ("package_side", ("package side", "box side", "package surface", "outside", "surface")),
-        ("seal", ("seal", "tape", "flap", "sealed side", "seal wali side")),
+        ("seal", ("seal", "open seal", "opened seal", "torn seal", "broken seal",
+                  "tape", "flap", "sealed side", "seal wali side", "tape wali side")),
         ("label", ("shipping label", "package label", "etiqueta", "label")),
         ("contents", ("contents", "content", "product inside", "missing product",
                       "item missing", "andar ka item", "inside the package")),
@@ -52,11 +57,16 @@ ISSUE_PATTERNS: list[tuple[str, tuple[str, ...]]] = [
     ("glass_shatter", ("shattered", "shatter", "smashed glass", "screen shattered",
                        "windshield shatter")),
     ("torn_packaging", ("torn open", "torn-open", "torn packaging", "seal is torn",
-                        "seal torn", "phati", "fata", "opened jaisa", "open jaisa")),
-    ("crushed_packaging", ("crushed", "crush", "dab gaya", "daba hua", "aplastad")),
+                        "seal torn", "open seal", "opened seal", "broken seal",
+                        "tape broken", "package opened", "box opened", "opened box",
+                        "phati", "phati hui", "fata", "abierto", "rasgado",
+                        "opened jaisa", "open jaisa")),
+    ("crushed_packaging", ("crushed", "crush", "corner crushed", "crushed corner",
+                           "dab gaya", "daba hua", "aplastad", "aplastado")),
     ("water_damage", ("water damage", "liquid damage", "wet box", "got wet",
                       "coffee", "water damaged", "mojado", "agua")),
-    ("missing_part", ("missing keys", "key is missing", "keys missing", "missing part",
+    ("missing_part", ("missing key", "key missing", "keycap missing", "missing keycap",
+                      "missing keys", "key is missing", "keys missing", "missing part",
                       "missing or broken", "faltan", "missing")),
     ("broken_part", ("broken", "broke", "breakage", "toot gaya", "toota", "roto")),
     ("dent", ("hail dents", "dented", "dent", "dab gaya", "abollad", "hundido")),
@@ -77,6 +87,29 @@ def _find_all(text: str, patterns: list[tuple[str, tuple[str, ...]]]) -> list[st
     return [label for _, label in sorted(matches)]
 
 
+def _negated_labels(
+    text: str, patterns: list[tuple[str, tuple[str, ...]]]
+) -> set[str]:
+    """Find labels explicitly rejected in English, Hindi/Hinglish, or Spanish."""
+    negated: set[str] = set()
+    scan_text = re.sub(
+        r"\bno,?\s+(?:this|it)\s+is\s+(?:about|for)\b", "", text
+    )
+    for label, phrases in patterns:
+        for phrase in phrases:
+            term = re.escape(normalize_text(phrase))
+            before = (
+                rf"\b(?:not|no)\b[^.!?]{{0,45}}\b{term}\b|"
+                rf"\b(?:nahi|nahin)\b[^,.!?]{{0,15}}\b{term}\b|"
+                rf"\bsin\b[^,.!?]{{0,30}}\b{term}\b"
+            )
+            after = rf"\b{term}\b[^.!?]{{0,30}}\b(?:nahi|nahin)\b"
+            if re.search(before, scan_text) or re.search(after, scan_text):
+                negated.add(label)
+                break
+    return negated
+
+
 def extract_claim(user_claim: str, claim_object: str) -> ClaimIntent:
     if claim_object not in OBJECT_PARTS:
         raise ValueError(f"Unsupported claim_object: {claim_object}")
@@ -91,34 +124,63 @@ def extract_claim(user_claim: str, claim_object: str) -> ClaimIntent:
     # The final claimant turn commonly narrows or corrects earlier conversational
     # possibilities. Use it first, then fall back to the whole claimant transcript.
     parts = list(dict.fromkeys(_find_all(final_text, PART_PATTERNS[claim_object])))
-    negation_prefixes = ("not ", "not the ", "no ", "nahi ", "nahi, ")
-    for part, phrases in PART_PATTERNS[claim_object]:
-        if any(f"{prefix}{normalize_text(phrase)}" in final_text
-               for prefix in negation_prefixes for phrase in phrases):
-            parts = [candidate for candidate in parts if candidate != part]
+    negated_parts = _negated_labels(final_text, PART_PATTERNS[claim_object])
+    parts = [candidate for candidate in parts if candidate not in negated_parts]
     if "item missing claim nahi" in final_text or "not claiming missing" in final_text:
         parts = [candidate for candidate in parts if candidate not in {"contents", "item"}]
     if not parts:
         parts = list(dict.fromkeys(_find_all(text, PART_PATTERNS[claim_object])))
+        parts = [candidate for candidate in parts if candidate not in _negated_labels(
+            text, PART_PATTERNS[claim_object]
+        )]
     if len(parts) > 1:
         parts = [p for p in parts if p not in {"body", "box", "item"}] or parts
     issues = list(dict.fromkeys(
         _find_all(final_text, ISSUE_PATTERNS) + _find_all(text, ISSUE_PATTERNS)
     ))
+    negated_issues = _negated_labels(final_text, ISSUE_PATTERNS) | _negated_labels(
+        text, ISSUE_PATTERNS
+    )
+    issues = [issue for issue in issues if issue not in negated_issues]
+    if claim_object == "package" and "crushed_packaging" in issues:
+        issues = [issue for issue in issues if issue != "dent"]
+    explicit_water_damage = bool(re.search(
+        r"\b(?:water damage|water damaged|liquid damage)\b", final_text
+    ))
+    stain_context = bool(re.search(
+        r"\b(?:stain|stained|mancha|daag|oily mark|wet-looking stain)\b", final_text
+    ))
+    if stain_context and not explicit_water_damage:
+        issues = ["stain", *[issue for issue in issues if issue not in {"stain", "water_damage"}]]
+    elif explicit_water_damage and "water_damage" in issues:
+        issues = ["water_damage", *[issue for issue in issues if issue != "water_damage"]]
+    if not issues and claim_object == "car" and parts and parts[0] == "side_mirror":
+        if re.search(r"\b(?:damaged|loose|not sitting|hanging|misaligned)\b", text):
+            issues = ["broken_part"]
     if claim_object == "package" and issues and issues[0] == "torn_packaging":
         all_parts = _find_all(text, PART_PATTERNS[claim_object])
         if "seal" in all_parts and parts == ["box"]:
             parts = ["seal"]
     qualifiers = []
-    for qualifier, pattern in {
-        "severe": r"\b(deep|severe|badly|pretty bad|major)\b",
-        "minor": r"\b(small|minor|light|slight|pequeno)\b",
-        "left": r"\b(left|izquierd[oa])\b",
-        "right": r"\b(right|derech[oa])\b",
-        "unreadable": r"\b(unreadable|illegible)\b",
-        "instruction_attack": r"\b(ignore .*instructions|approve .*immediately|mark .*supported)\b",
-    }.items():
-        if re.search(pattern, text):
+    qualifier_sources = {
+        "severe": (
+            text,
+            r"\b(?:deep (?:scratch|crack|dent)|severe (?:damage|scratch|crack|dent)|"
+            r"large hole|badly crushed|major damage|pretty bad)\b",
+        ),
+        "minor": (final_text, r"\b(?:small|minor|light|slight|pequeno|pequena)\b"),
+        "left": (final_text, r"\b(?:left|izquierd[oa])\b"),
+        "right": (final_text, r"\b(?:right|derech[oa])\b"),
+        "unreadable": (text, r"\b(?:unreadable|illegible)\b"),
+        "instruction_attack": (
+            text,
+            r"\b(?:ignore (?:all |any |previous )?instructions|approve (?:this |the )?"
+            r"(?:claim )?immediately|mark this row|mark (?:this |it )?supported|"
+            r"skip manual review|follow (?:this |the )?note|keep reopening tickets)\b",
+        ),
+    }
+    for qualifier, (source, pattern) in qualifier_sources.items():
+        if re.search(pattern, source):
             qualifiers.append(qualifier)
     return ClaimIntent(
         claim_object=claim_object,

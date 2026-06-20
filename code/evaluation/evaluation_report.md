@@ -1,6 +1,6 @@
 # Evaluation Report
 
-Generated: 2026-06-20T03:03:48.392326+00:00
+Generated: 2026-06-20T03:31:50.823822+00:00
 
 ## Final strategy
 
@@ -15,28 +15,28 @@ cannot independently perceive whether claimed semantic damage is truly visible.
 
 | Field | Exact accuracy |
 |---|---:|
-| `evidence_standard_met` | 75.0% |
+| `evidence_standard_met` | 85.0% |
 | `risk_flags` | 55.0% |
-| `issue_type` | 50.0% |
-| `object_part` | 85.0% |
-| `claim_status` | 60.0% |
-| `supporting_image_ids` | 45.0% |
-| `valid_image` | 90.0% |
-| `severity` | 45.0% |
+| `issue_type` | 65.0% |
+| `object_part` | 90.0% |
+| `claim_status` | 70.0% |
+| `supporting_image_ids` | 70.0% |
+| `valid_image` | 95.0% |
+| `severity` | 55.0% |
 
-Full structured-row accuracy: **15.0%**
+Full structured-row accuracy: **40.0%**
 
-Risk flag set F1: **71.8%**
+Risk flag set F1: **73.6%**
 
-Supporting-image set F1: **65.0%**
+Supporting-image set F1: **73.3%**
 
 ### Claim-status accuracy by object
 
 | Object | Accuracy |
 |---|---:|
-| car | 50.0% |
+| car | 62.5% |
 | laptop | 83.3% |
-| package | 50.0% |
+| package | 66.7% |
 
 ## Strategy comparison
 
@@ -55,7 +55,7 @@ Supporting-image set F1: **65.0%**
 - Input tokens: 0
 - Output tokens: 0
 - Approximate cost: **$0.0000**
-- Runtime: 2.89 seconds
+- Runtime: 4.71 seconds
 - Vision backend: `rules`
 - Model: `deterministic-rules-v1`
 

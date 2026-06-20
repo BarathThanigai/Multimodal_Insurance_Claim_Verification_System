@@ -373,12 +373,26 @@ class ImageAnalyzer:
         issue = intent.primary_issue if intent.primary_issue in ISSUE_TYPES else "unknown"
         part_known = part != "unknown"
         issue_known = issue != "unknown"
-        condition_visible = usable_dimensions and part_known and issue_known
+        contents_claim = (
+            intent.claim_object == "package"
+            and part in {"contents", "item"}
+            and issue == "missing_part"
+        )
+        explicit_contents_evidence = bool(re.search(
+            r"\b(?:photo|image|picture)\b[^.!?]{0,50}\b(?:inside|contents|empty|opened)\b|"
+            r"\b(?:opened|open)\s+(?:the\s+)?(?:box|package|parcel)\b[^.!?]{0,60}"
+            r"\b(?:photo|image|picture|shows?|visible)\b",
+            intent.source_text,
+        ))
+        unverifiable_contents = contents_claim and not explicit_contents_evidence
+        condition_visible = (
+            usable_dimensions and part_known and issue_known and not unverifiable_contents
+        )
 
         if issue == "none":
             damage_present: bool | None = False
             severity = "none"
-        elif not issue_known:
+        elif not issue_known or unverifiable_contents:
             damage_present = None
             severity = "unknown"
         else:
@@ -391,22 +405,30 @@ class ImageAnalyzer:
                 severity = "medium"
 
         quality_issues = []
-        if not usable_dimensions:
+        if not usable_dimensions or unverifiable_contents:
             quality_issues.append("cropped_or_obstructed")
-        description = (
+        if unverifiable_contents:
+            description = (
+                "The image opened, but deterministic exterior-image checks cannot "
+                "establish whether package contents are missing."
+            )
+        else:
+            description = (
             f"Readable {intent.claim_object} image validated by deterministic rules; "
             f"the extracted claim reports {issue.replace('_', ' ')} on "
             f"the {part.replace('_', ' ')}."
             if part_known and issue_known
             else "Image opened successfully, but the claimed part or issue was not specific enough."
-        )
+            )
         return (
             VisionResult(
                 visible_object=intent.claim_object,
                 visible_part=part,
                 visible_damage=issue,
                 damage_present=damage_present,
-                claimed_part_visible=usable_dimensions and part_known,
+                claimed_part_visible=(
+                    usable_dimensions and part_known and not unverifiable_contents
+                ),
                 claimed_condition_visible=condition_visible,
                 severity=severity,
                 quality_issues=quality_issues,

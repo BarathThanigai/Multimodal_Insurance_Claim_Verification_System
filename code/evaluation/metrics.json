@@ -1,28 +1,27 @@
 {
   "rows": 20,
   "field_accuracy": {
-    "evidence_standard_met": 0.75,
+    "evidence_standard_met": 0.85,
     "risk_flags": 0.55,
-    "issue_type": 0.5,
-    "object_part": 0.85,
-    "claim_status": 0.6,
-    "supporting_image_ids": 0.45,
-    "valid_image": 0.9,
-    "severity": 0.45
+    "issue_type": 0.65,
+    "object_part": 0.9,
+    "claim_status": 0.7,
+    "supporting_image_ids": 0.7,
+    "valid_image": 0.95,
+    "severity": 0.55
   },
-  "full_structured_row_accuracy": 0.15,
-  "risk_flags_set_f1": 0.7183,
-  "supporting_image_ids_set_f1": 0.65,
+  "full_structured_row_accuracy": 0.4,
+  "risk_flags_set_f1": 0.7362,
+  "supporting_image_ids_set_f1": 0.7333,
   "per_object_claim_status_accuracy": {
-    "car": 0.5,
+    "car": 0.625,
     "laptop": 0.8333,
-    "package": 0.5
+    "package": 0.6667
   },
   "confusion": {
     "issue_type": {
-      "broken_part -> broken_part": 1,
+      "broken_part -> broken_part": 2,
       "broken_part -> scratch": 1,
-      "broken_part -> unknown": 1,
       "crack -> crack": 2,
       "crack -> glass_shatter": 1,
       "crushed_packaging -> crushed_packaging": 1,
@@ -32,18 +31,18 @@
       "scratch -> scratch": 1,
       "scratch -> unknown": 1,
       "stain -> stain": 1,
-      "torn_packaging -> missing_part": 1,
+      "torn_packaging -> torn_packaging": 1,
       "unknown -> crack": 1,
       "unknown -> crushed_packaging": 1,
-      "unknown -> missing_part": 1,
+      "unknown -> unknown": 1,
       "water_damage -> water_damage": 1
     },
     "claim_status": {
       "contradicted -> not_enough_information": 2,
       "contradicted -> supported": 3,
-      "not_enough_information -> supported": 2,
-      "supported -> not_enough_information": 1,
-      "supported -> supported": 12
+      "not_enough_information -> not_enough_information": 1,
+      "not_enough_information -> supported": 1,
+      "supported -> supported": 13
     },
     "severity": {
       "high -> low": 1,
@@ -53,12 +52,11 @@
       "low -> unknown": 1,
       "medium -> high": 1,
       "medium -> low": 1,
-      "medium -> medium": 8,
-      "medium -> unknown": 1,
+      "medium -> medium": 9,
       "none -> medium": 1,
       "none -> unknown": 1,
-      "unknown -> high": 1,
-      "unknown -> medium": 1
+      "unknown -> medium": 1,
+      "unknown -> unknown": 1
     }
   }
 }

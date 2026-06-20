@@ -64,7 +64,7 @@ def process_claims(
             totals["errors"] += sum(bool(obs.error) for obs in observations)
             evidence = validate_evidence(intent, observations, requirements)
             risks = assess_risk(intent, observations, histories.get(claim["user_id"]))
-            decision = decide(intent, observations, evidence)
+            decision = decide(intent, observations, evidence, risks)
             row = {
                 **claim,
                 "evidence_standard_met": bool_text(evidence.evidence_standard_met),

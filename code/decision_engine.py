@@ -21,15 +21,26 @@ def decide(
     intent: ClaimIntent,
     observations: list[ImageObservation],
     evidence: EvidenceResult,
+    risk_flags: list[str] | None = None,
 ) -> DecisionResult:
+    risks = set(risk_flags or [])
     usable = [o for o in observations if not o.error and o.technical_valid]
     relevant = [o for o in usable if o.claimed_part_visible and o.claimed_condition_visible]
     if not evidence.evidence_standard_met or not relevant:
         part = intent.primary_part.replace("_", " ")
+        if (intent.claim_object == "package" and intent.primary_part in {"contents", "item"}
+                and intent.primary_issue == "missing_part"):
+            reason = "Exterior image validation cannot establish missing package contents."
+        else:
+            reason = f"No usable image establishes the claimed {part} condition."
         return DecisionResult(
             "unknown", intent.primary_part, "not_enough_information", "unknown", [],
-            f"The submitted images do not provide a clear, usable view of the claimed {part}, "
-            "so the claim cannot be verified.",
+            reason,
+        )
+    if "text_instruction_present" in risks:
+        return DecisionResult(
+            "unknown", intent.primary_part, "not_enough_information", "unknown", [],
+            "Instruction-like claim text requires manual review before a damage decision.",
         )
 
     def issue_matches(obs: ImageObservation) -> bool:
@@ -47,18 +58,25 @@ def decide(
     negative = [o for o in relevant if o.damage_present is False]
     matching = [o for o in positive if issue_matches(o)]
     if matching:
-        chosen = sorted(matching, key=lambda o: (-o.confidence, o.image_id))
+        chosen = sorted(matching, key=lambda o: (-o.confidence, o.image_id))[:1]
         issue = Counter(o.visible_damage for o in chosen).most_common(1)[0][0]
         parts = Counter(o.visible_part for o in chosen if o.visible_part != "unknown")
         part = parts.most_common(1)[0][0] if parts else intent.primary_part
         ids = [o.image_id for o in chosen]
         description = chosen[0].description.rstrip(".")
+        if "deterministic rules" in chosen[0].description:
+            justification = (
+                f"Image {ids[0]} opened successfully; deterministic rules mapped the "
+                f"specific {issue.replace('_', ' ')} claim to {part.replace('_', ' ')}."
+            )
+        else:
+            justification = f"Image {ids[0]} supports the claim: {description}."
         return DecisionResult(
             issue, part, "supported", _severity(chosen, "supported"), ids,
-            f"Image {ids[0]} supports the claim: {description}.",
+            justification,
         )
 
-    chosen = sorted(positive or negative, key=lambda o: (-o.confidence, o.image_id))
+    chosen = sorted(positive or negative, key=lambda o: (-o.confidence, o.image_id))[:1]
     best = chosen[0]
     valid_damage = {
         "dent", "scratch", "crack", "glass_shatter", "broken_part", "missing_part",
