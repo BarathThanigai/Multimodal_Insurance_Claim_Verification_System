@@ -1,4 +1,4 @@
-# Multimodal Insurance Claim Verification System
+# Hybrid Multimodal Insurance Claim Verification System
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Default Backend](https://img.shields.io/badge/default-deterministic%20rules-2E8B57)
